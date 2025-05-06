@@ -18,7 +18,7 @@ interface QueryResponse {
 }
 
 // B. Documento del libro
-interface IBook extends Document { 
+interface IBook { 
   title: string,
   author: string,
   publishedYear: number,
@@ -90,95 +90,189 @@ const createBook = async (data:BookInput): Promise<QueryResponse> => {
 }
 
 // B. Obtener todos los libros
-const getBooks = async (): Promise<void> => {
+const getBooks = async (): Promise<QueryResponse> => {
   try { 
     const books = await Book.find().lean()
-    console.log("Libros encontrados: ",books)
+    return createQueryResponse({
+      success: true,
+      message: books.length ? "Libros obtenidos con éxito" : "No hay libros registrados",
+      data: books
+    })
+    
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error al actualizar el libro: ", error.message);
-    } else {
-      console.error("Error desconocido: ", error);
-    }
+    const errMsg = error instanceof Error ? error.message : "Error desconocido";
+    const statusCode = typeof (error as any)?.code === "number" ? (error as any).code : 500;
+    return createQueryResponse({
+      success: false,
+      message: "Falló la obtención de libros",
+      error: {
+        details: errMsg,
+        statusCode: statusCode
+      }
+    })
   }
 }
 
 // C. Obtener un libro por ID
-const getBook = async (id:string): Promise<void> => {
-  try { 
+const getBook = async (id: string): Promise<QueryResponse> => {
+  try {
     const book = await Book.findById(id).lean()
     if (!book) {
-      console.warn("Libro no encontrado")
-    } else { 
-      console.log("Libro encontrado: ", book)
+      return createQueryResponse({
+        success: false,
+        message: "Libro no encontrado",
+        error: {
+          details: "No existe un libro con ese ID",
+          statusCode: 404
+        }
+      });
     }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error al actualizar el libro: ", error.message);
-    } else {
-      console.error("Error desconocido: ", error);
-    }
+    return createQueryResponse({
+      success: true,
+      message: "Libro encontrado con éxito",
+      data: book
+    });
+  } catch (error) { 
+    const errMsg = error instanceof Error ? error.message : "Error desconocido";
+    const statusCode = typeof (error as any).code === "number" ? (error as any).code : 500;
+    return createQueryResponse({
+      success: false,
+      message: "Error al buscar el libro",
+      error: {
+        details: errMsg,
+        statusCode: statusCode
+      }
+    })
   }
 }
-
 // C. Obtener libros por titulos
-const getBookByTitle = async (title:string): Promise<void> => {
+const getBookByTitle = async (title:string): Promise<QueryResponse> => {
   try { 
     const books = await Book.find({ title }).lean()
     if (books.length === 0) {
-      console.warn("No se encontraron libros con ese título.")
-    } else { 
-      console.log("Libros encontrados: ", books)
-    }
+      return createQueryResponse({
+        success: false,
+        message: "El libro no existe o fue eliminado",
+        error: {
+          details: "No se encontraron libros con ese título",
+          statusCode: 404
+        }
+      })
+     }
+    return createQueryResponse({
+      success: true,
+      message: "Libros encontrados con éxito",
+      data: books
+    })
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error al actualizar el libro: ", error.message);
-    } else {
-      console.error("Error desconocido: ", error);
-    }
+    const errMsg = error instanceof Error ? error.message : "Error desconocido"
+    const statusCode = typeof (error as any).code === "number" ? (error as any).code : 500
+    return createQueryResponse({
+      success: false,
+      message: "Error al buscar por título",
+      error: {
+        details: errMsg,
+        statusCode: statusCode
+      }
+    })
   }
 }
  
 // D. Actualizar libro por ID
-const udpdateBook = async (id: string, data: BookUpdateInput):Promise<void> => { 
+const updateBook = async (id: string, data: BookUpdateInput):Promise<QueryResponse> => { 
   try {
     const updatedBook = await Book.findByIdAndUpdate(id, data, {new:true}).lean()
-    if (!updatedBook) { console.warn("Libro no encontrado para actualización.") }
-    else { 
-      console.log("Libro actualizado: ", updatedBook)
-    }
-   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error al actualizar el libro: ", error.message);
-    } else {
-      console.error("Error desconocido: ", error);
-    }
+    if (!updatedBook) {
+      return createQueryResponse({
+        success: false,
+        message: "Libro no encontrado",
+        error: {
+          details: "Id inexistente",
+          statusCode: 404
+        }
+    }) }
+    
+    return createQueryResponse({
+      success: true,
+      message: "Libro actualizado con éxito",
+      data: updatedBook
+    })
+
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : "Error desconocido";
+    const statusCode = typeof (error as any).code === "number" ? (error as any).code : 500
+    return createQueryResponse({
+      success: false,
+      message: "Error en la actualización del libro.",
+      error: {
+        details: errMsg,
+        statusCode: statusCode
+      }
+    })
   }
 }
 
 // E. Eliminar un libro por ID
-const deleteBook = async (id:string): Promise<void> => { 
+const deleteBook = async (id:string): Promise<QueryResponse> => { 
   try {
     const deletedBook = await Book.findByIdAndDelete(id).lean()
-    if (!deletedBook) { console.warn("Libro no encontrado.") }
-    else { console.log("Libro eliminado:", deletedBook) }
-   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error al eliminar el libro: ", error.message);
-    } else {
-      console.error("Error desconocido: ", error);
+    
+    if (!deletedBook) {
+      return createQueryResponse({
+        success: false,
+        message: "El libro no existe o ya fue eliminado.",
+        error: {
+          details: "No se encontró un libro con ese ID.",
+          statusCode: 404
+        }
+      })
     }
+
+    return createQueryResponse({
+      success: true,
+      message: "Libro eliminado con éxito",
+      data: deletedBook
+    })
+
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : "Error desconocido";
+    const statusCode = typeof (error as any)?.code === "number" ? (error as any).code : 500;
+    return createQueryResponse({
+      success: false,
+      message: "Error al eliminar el libro",
+      error: {
+        details: errMsg,
+        statusCode:statusCode
+      }
+    })
   }
 }
-
-
 
 // === EJEMPLOS DE USO ===
 
 const main = async() => {
-  const response = await createBook({ title: "Chanchos voladores", author: "Rocio", publishedYear: 1987, available: true })
-  console.log(response)
-  await deleteBook("3")
+  // const responseCreateBook = await createBook({ title: "Super cali", author: "Rocio", publishedYear: 1987, available: true })
+  // console.log(responseCreateBook)
+  // console.log("-----------------------------------------")
+
+  // const responseGetBooks = await getBooks()
+  // console.log(responseGetBooks)
+  // console.log("-----------------------------------------")
+
+  // const responseGetBook = await getBook("681a7031a4587ec1f285211d")
+  // console.log(responseGetBook)
+  // console.log("-----------------------------------------")
+
+  // const responsedeleteBook = await deleteBook("681a13f5d5178713817d8539")
+  // console.log(responsedeleteBook)
+  // console.log("-----------------------------------------")
+  
+  // const responseGetBookByTitle = await getBookByTitle("")
+  // console.log(responseGetBookByTitle)
+  // console.log("-----------------------------------------")
+  
+  // const responseUpdateBook = await updateBook("6819f74663daffa6b49e699d", { title: "cualquiera" })
+  // console.log(responseUpdateBook)
 }
  
 main()
