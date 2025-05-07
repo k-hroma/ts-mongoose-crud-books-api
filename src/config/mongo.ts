@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
-import dotenv from 'dotenv';
 
-dotenv.config();
+
+process.loadEnvFile()
 
 const connectDB = async (): Promise<void> => {
   const URI_DB = process.env.URI_DB || ""
